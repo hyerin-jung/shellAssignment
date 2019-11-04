@@ -1,7 +1,8 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Put your name and login ID here>
+ * Haewon Shon <haewon.son>
+ * Hyerin Jung <hyerin.jung>
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,7 +166,38 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-    return;
+	char* argv[MAXARGS];
+	//char buf[MAXLINE];
+	pid_t pid;
+
+	int bg = parseline(cmdline, argv);
+
+	if(argv[0] == NULL)
+	{
+		return;
+	}
+
+	if(builtin_cmd(argv) == 0)
+	{
+		// not built-in command. 
+		if((pid = fork()) == 0)
+		{
+			if(execve(argv[0], argv, environ) < 0)
+			{
+				printf("%s: Command not found.\n", argv[0]);
+				exit(0);
+			}
+		}
+
+		if(!bg){
+			int status;
+			if(waitpid(pid, &status, 0) < 0)
+				unix_error("waitfg : waitpid error");
+		}
+		else
+			printf("%d %s", pid, cmdline);
+	}
+	return;
 }
 
 /* 
@@ -231,7 +263,28 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
-    return 0;     /* not a builtin command */
+	if(!strcmp(argv[0], "quit"))
+	{
+		exit(0);
+	}
+	else if(!strcmp(argv[0], "bg"))
+	{
+		// stopped background job to a running background job.(SIGCONT)
+	}
+	else if(!strcmp(argv[0], "fg"))
+	{
+		// background -> foreground
+	}
+	else if(!strcmp(argv[0], "kill"))
+	{
+		// terminate a job
+		
+	}
+	else if(!strcmp(argv[0], "&"))
+	{
+		return 1;
+	}
+	return 0;
 }
 
 /* 
@@ -273,6 +326,8 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+	//Typing ctrl-c causes a SIGINT signal to be delivered to each process in the foreground job.
+	//default : terminate the process
     return;
 }
 
@@ -283,6 +338,8 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+	//SIGTSTP signal to be delivered to each process in the foreground job.
+	// process to stopped process, until SIGCONT signal.
     return;
 }
 
