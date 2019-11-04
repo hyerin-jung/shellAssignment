@@ -166,6 +166,9 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+
+    //reference from book.
+
 	char* argv[MAXARGS];
 	//char buf[MAXLINE];
 	pid_t pid;
@@ -316,6 +319,7 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+
     return;
 }
 
@@ -328,7 +332,21 @@ void sigint_handler(int sig)
 {
 	//Typing ctrl-c causes a SIGINT signal to be delivered to each process in the foreground job.
 	//default : terminate the process
+
+    //pid_t :  processor id type
+    pid_t pid = fgpid(jobs);
+
+    if(pid!=0){
+        kill(-pid, SIGINT);
+        if(verbose){ //verbose=0;/* if true, print additional output */
+            std::cout<<"Sigint Handler: "<<(int)pid;
+        }
+    }
+    if(verbose){
+        std::cout<<"Sigint Handler: Exist";
+    }
     return;
+
 }
 
 /*
@@ -336,10 +354,20 @@ void sigint_handler(int sig)
  *     the user types ctrl-z at the keyboard. Catch it and suspend the
  *     foreground job by sending it a SIGTSTP.  
  */
-void sigtstp_handler(int sig) 
+void sigtstp_handler(int sig)
 {
 	//SIGTSTP signal to be delivered to each process in the foreground job.
 	// process to stopped process, until SIGCONT signal.
+    pid_t pid = fgpid(jobs);
+
+    if(pid==0){
+        return;
+    }
+    else
+    {
+        kill(-pid, SIGTSTP); //sending SIGSTP signal to all stopped process
+        
+    }
     return;
 }
 
