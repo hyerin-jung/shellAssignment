@@ -319,7 +319,46 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+	int status;
+	pid_t pid;
+	int job_id;
 
+	pid = waitpid(-1, &status, WUNTRACED | WNOHANG);
+
+	//to reap child zombies
+	while(pid>0)
+	{
+
+		job_id = pid2jid(pid);
+
+
+		if(WIREXIED(status))
+		{
+			deletejob(jobs, pid);
+
+			if(verbose)
+			{
+				printf("SigChld Handler: Job[%d] %d deleted\n", job_id, int(pid));
+				//WEXITSTATUS: the child process normally terminated-> the return value
+            	printf("SigChld Handler: Job[%d] %d terminated (status %d)\n", job_id, (int)pid, WEXITSTATUS(status));
+            }
+		}
+		else if(WIFSTOPPED(status))
+		{
+			printf("SigChld Handler: Job[%d] %d stopped by the signal(%d)\n", job_id, WTERMSIG(status));
+		}
+		else if(WIFSIGNALED(status))
+		{
+			deletejob(jobs, pid);
+
+			if(verbose)
+			{
+				printf("SigChld Handler: Job[%d] %d deleted\n", job_id, int(pid));
+			}
+			//WTERMSIG: Returns the number of the signal that caused the child process to terminate.
+			printf("Job[%d] %d terminated by the signal(%d)\n", job_id, (int)pid, WTERMSIG(status));
+		}
+	}
 
     return;
 }
@@ -337,14 +376,19 @@ void sigint_handler(int sig)
     //pid_t :  processor id type
     pid_t pid = fgpid(jobs);
 
-    if(pid!=0){
+    if(pid!=0)
+    {
         kill(-pid, SIGINT);
-        if(verbose){ //verbose=0;/* if true, print additional output */
-            std::cout<<"Sigint Handler: "<<(int)pid;
+        
+        //verbose=0;/* if true, print additional output */
+        if(verbose)
+        { 
+            printf("Sigint Handler: %d",(int)pid);
         }
     }
-    if(verbose){
-        std::cout<<"Sigint Handler: Exist";
+    if(verbose)
+    {
+        printf("Sigint Handler: Exist");
     }
     return;
 
@@ -361,14 +405,21 @@ void sigtstp_handler(int sig)
 	// process to stopped process, until SIGCONT signal.
     pid_t pid = fgpid(jobs);
 
-    if(pid!=0){
-        kill(-pid, SIGTSTP); //sending SIGSTP signal to all stopped process
-        if(verbose){
-        	std::cout<<"Sigtstp Handler: "<<(int)pid;
+    if(pid!=0)
+    {
+        kill(-pid, SIGTSTP);
+
+        if(verbose)
+        {
+        	printf("Sigtstp Handler: %d", (int)pid);
         }
+
+        //have to change the jobstate to stop (ST)     
+        getjobpid(jobs, pid)->state = ST;
     }
-    if(verbose){
-    	std::cout<<"Sigtstp Handler: Exist";
+    if(verbose)
+    {
+    	printf("Sigtstp Handler: Exist");
     }
     return;
 }
