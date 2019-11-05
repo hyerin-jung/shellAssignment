@@ -170,6 +170,12 @@ void eval(char *cmdline)
 	//char buf[MAXLINE];
 	pid_t pid;
 
+    sigset_t mask, prev_mask;
+
+    sigemptyset(&mask);
+    sigemptyset(&prev_mask);
+    sigaddset(&mask, SIGCHLD);
+
 	int bg = parseline(cmdline, argv);
 
 	if(argv[0] == NULL)
@@ -179,9 +185,13 @@ void eval(char *cmdline)
 
 	if(builtin_cmd(argv) == 0)
 	{
-		// not built-in command. 
-		if((pid = fork()) == 0)
+		// for not built-in command.
+        sigprocmask(SIG_BLOCK, &mask, NULL); // block SIGCHLD
+		if((pid = fork()) == 0) 
 		{
+            sigprocmask(SIG_UNBLOCK, &mask, NULL); // unblock SIGCHLD
+            setpgid(0, 0);
+            
 			if(execve(argv[0], argv, environ) < 0)
 			{
 				printf("%s: Command not found.\n", argv[0]);
@@ -248,7 +258,7 @@ int parseline(const char *cmdline, char **argv)
     argv[argc] = NULL;
     
     if (argc == 0)  /* ignore blank line */
-	return 1;
+	   return 1;
 
     /* should the job run in the background? */
     if ((bg = (*argv[argc-1] == '&')) != 0) {
@@ -267,24 +277,32 @@ int builtin_cmd(char **argv)
 	{
 		exit(0);
 	}
-	else if(!strcmp(argv[0], "bg"))
+    else if(!strcmp(argv[0], "jobs"))
+    {
+        // List the running and stopped background jobs.
+        listjobs(jobs);
+    }
+	else if(!strcmp(argv[0], "bg") || !strcmp(argv[0], "fg"))
 	{
-		// stopped background job to a running background job.(SIGCONT)
-	}
-	else if(!strcmp(argv[0], "fg"))
-	{
-		// background -> foreground
+        do_bgfg(argv);
+
 	}
 	else if(!strcmp(argv[0], "kill"))
 	{
 		// terminate a job
-		
+        pid_t pid;
+        if(!strncmp(argv[1], "%", 1)) // jid
+        {
+
+            //getjobjid(jobs, )
+        }
+        kill(pid, SIGKILL)
 	}
-	else if(!strcmp(argv[0], "&"))
-	{
-		return 1;
-	}
-	return 0;
+    else
+    {
+	   return 0;
+    }
+    return 1;
 }
 
 /* 
@@ -292,6 +310,16 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    // stopped background job to a running background job.(SIGCONT)
+    if(!strcmp(argv[0], "bg"))
+    {
+
+    }
+    // background -> foreground
+    else
+    {
+
+    }
     return;
 }
 
@@ -300,6 +328,9 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    pid_t fg_pid = fgpid(jobs);
+
+    waitpid(fg_pid, NULL, 0);
     return;
 }
 
