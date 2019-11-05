@@ -173,6 +173,12 @@ void eval(char *cmdline)
 	//char buf[MAXLINE];
 	pid_t pid;
 
+    sigset_t mask, prev_mask;
+
+    sigemptyset(&mask);
+    sigemptyset(&prev_mask);
+    sigaddset(&mask, SIGCHLD);
+
 	int bg = parseline(cmdline, argv);
 
 	if(argv[0] == NULL)
@@ -182,23 +188,40 @@ void eval(char *cmdline)
 
 	if(builtin_cmd(argv) == 0)
 	{
-		// not built-in command. 
-		if((pid = fork()) == 0)
+		// for not built-in command.
+        sigprocmask(SIG_BLOCK, &mask, NULL); // block SIGCHLD
+		if((pid = fork()) == 0) 
 		{
+            sigprocmask(SIG_UNBLOCK, &mask, NULL); // unblock SIGCHLD
+            setpgid(0, 0);
+            
 			if(execve(argv[0], argv, environ) < 0)
 			{
 				printf("%s: Command not found.\n", argv[0]);
 				exit(0);
 			}
 		}
+		else
+		{
+			int fgbg;
+			if(!bg)
+				fgbg = FG;
+			else
+				fgbg = BG;
+
+			if(addjob(jobs, pid, fgbg, cmdline) == 0)
+			{
+				printf("eval - failed to add job.\n");
+			}
+            else
+            {
+                printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+            }
+		}
 
 		if(!bg){
-			int status;
-			if(waitpid(pid, &status, 0) < 0)
-				unix_error("waitfg : waitpid error");
+			waitfg(pid);
 		}
-		else
-			printf("%d %s", pid, cmdline);
 	}
 	return;
 }
@@ -251,7 +274,7 @@ int parseline(const char *cmdline, char **argv)
     argv[argc] = NULL;
     
     if (argc == 0)  /* ignore blank line */
-	return 1;
+	   return 1;
 
     /* should the job run in the background? */
     if ((bg = (*argv[argc-1] == '&')) != 0) {
@@ -270,24 +293,21 @@ int builtin_cmd(char **argv)
 	{
 		exit(0);
 	}
-	else if(!strcmp(argv[0], "bg"))
+    else if(!strcmp(argv[0], "jobs"))
+    {
+        // List the running and stopped background jobs.
+        listjobs(jobs);
+    }
+	else if(!strcmp(argv[0], "bg") || !strcmp(argv[0], "fg"))
 	{
-		// stopped background job to a running background job.(SIGCONT)
+        do_bgfg(argv);
+
 	}
-	else if(!strcmp(argv[0], "fg"))
-	{
-		// background -> foreground
-	}
-	else if(!strcmp(argv[0], "kill"))
-	{
-		// terminate a job
-		
-	}
-	else if(!strcmp(argv[0], "&"))
-	{
-		return 1;
-	}
-	return 0;
+    else
+    {
+	   return 0;
+    }
+    return 1;
 }
 
 /* 
@@ -295,6 +315,51 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    if(argv[1] == NULL)
+    {
+        printf("%s : require pid or jid", argv[0]);
+        return;
+    }
+
+    int isfg = strcmp(argv[1], "bg");
+    int isPid = strncmp(argv[1], "%", 1);
+
+    int pid;
+
+    if(isPid)
+    {
+        pid = atoi(argv[1]);
+    }
+    else
+    {
+        pid = atoi(argv[1] + 1);
+    }
+
+    struct job_t* job = getjobpid(jobs, pid);
+    // command "bg" - Change a stopped background job to a running background job
+    if(!isfg)
+    {
+        if(job->state == ST)
+        {
+            job->state = BG;
+        }
+    }
+    // commnad "fg" - Change a stopped or running background job to a running in the foreground
+    else
+    {
+        if(job->state != ST || job->state != BG)
+        {
+            job->state = FG;
+        }
+    }
+
+    kill(-pid, SIGCONT);
+
+    if(isfg)
+    {
+        waitfg(pid);
+    }
+
     return;
 }
 
@@ -303,6 +368,14 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    pid_t fg_pid = fgpid(jobs);
+
+    if(pid == fg_pid)
+    {
+        int status;
+        if(waitpid(pid, &status, 0) < 0)
+            unix_error("waitfg : waitpid error");
+    }   
     return;
 }
 
@@ -556,7 +629,6 @@ int pid2jid(pid_t pid)
 void listjobs(struct job_t *jobs) 
 {
     int i;
-    
     for (i = 0; i < MAXJOBS; i++) {
 	if (jobs[i].pid != 0) {
 	    printf("[%d] (%d) ", jobs[i].jid, jobs[i].pid);
