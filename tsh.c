@@ -320,6 +320,7 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
 
+
     return;
 }
 
@@ -360,13 +361,14 @@ void sigtstp_handler(int sig)
 	// process to stopped process, until SIGCONT signal.
     pid_t pid = fgpid(jobs);
 
-    if(pid==0){
-        return;
-    }
-    else
-    {
+    if(pid!=0){
         kill(-pid, SIGTSTP); //sending SIGSTP signal to all stopped process
-        
+        if(verbose){
+        	std::cout<<"Sigtstp Handler: "<<(int)pid;
+        }
+    }
+    if(verbose){
+    	std::cout<<"Sigtstp Handler: Exist";
     }
     return;
 }
