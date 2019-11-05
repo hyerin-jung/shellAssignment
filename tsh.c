@@ -198,14 +198,27 @@ void eval(char *cmdline)
 				exit(0);
 			}
 		}
+		else
+		{
+			int fgbg;
+			if(!bg)
+				fgbg = FG;
+			else
+				fgbg = BG;
+
+			if(addjob(jobs, pid, fgbg, cmdline) == 0)
+			{
+				printf("eval - failed to add job.\n");
+			}
+            else
+            {
+                printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+            }
+		}
 
 		if(!bg){
-			int status;
-			if(waitpid(pid, &status, 0) < 0)
-				unix_error("waitfg : waitpid error");
+			waitfg(pid);
 		}
-		else
-			printf("%d %s", pid, cmdline);
 	}
 	return;
 }
@@ -287,17 +300,6 @@ int builtin_cmd(char **argv)
         do_bgfg(argv);
 
 	}
-	else if(!strcmp(argv[0], "kill"))
-	{
-		// terminate a job
-        pid_t pid;
-        if(!strncmp(argv[1], "%", 1)) // jid
-        {
-
-            //getjobjid(jobs, )
-        }
-        kill(pid, SIGKILL)
-	}
     else
     {
 	   return 0;
@@ -310,16 +312,51 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    // stopped background job to a running background job.(SIGCONT)
-    if(!strcmp(argv[0], "bg"))
+    if(argv[1] == NULL)
     {
-
+        printf("%s : require pid or jid", argv[0]);
+        return;
     }
-    // background -> foreground
+
+    int isfg = strcmp(argv[1], "bg");
+    int isPid = strncmp(argv[1], "%", 1);
+
+    int pid;
+
+    if(isPid)
+    {
+        pid = atoi(argv[1]);
+    }
     else
     {
-
+        pid = atoi(argv[1] + 1);
     }
+
+    struct job_t* job = getjobpid(jobs, pid);
+    // command "bg" - Change a stopped background job to a running background job
+    if(!isfg)
+    {
+        if(job->state == ST)
+        {
+            job->state = BG;
+        }
+    }
+    // commnad "fg" - Change a stopped or running background job to a running in the foreground
+    else
+    {
+        if(job->state != ST || job->state != BG)
+        {
+            job->state = FG;
+        }
+    }
+
+    kill(-pid, SIGCONT);
+
+    if(isfg)
+    {
+        waitfg(pid);
+    }
+
     return;
 }
 
@@ -330,7 +367,12 @@ void waitfg(pid_t pid)
 {
     pid_t fg_pid = fgpid(jobs);
 
-    waitpid(fg_pid, NULL, 0);
+    if(pid == fg_pid)
+    {
+        int status;
+        if(waitpid(pid, &status, 0) < 0)
+            unix_error("waitfg : waitpid error");
+    }   
     return;
 }
 
@@ -506,7 +548,6 @@ int pid2jid(pid_t pid)
 void listjobs(struct job_t *jobs) 
 {
     int i;
-    
     for (i = 0; i < MAXJOBS; i++) {
 	if (jobs[i].pid != 0) {
 	    printf("[%d] (%d) ", jobs[i].jid, jobs[i].pid);
