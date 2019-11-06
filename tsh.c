@@ -410,11 +410,14 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+<<<<<<< Updated upstream
     printf("sigchld_handler called");
     if(verbose)
     {
         printf("entered sigchld_handler");
     }
+=======
+>>>>>>> Stashed changes
 
 	int status;
 	pid_t pid;
@@ -446,8 +449,13 @@ void sigchld_handler(int sig)
 		}
 		else if(WIFSTOPPED(status))
 		{
+<<<<<<< Updated upstream
             printf("WIFSTOPPED\n");
 			printf("SigChld Handler: Job[%d] %d stopped by the signal(%d)\n", job_id, pid, WTERMSIG(status));
+=======
+			getjobpid(jobs, pid)->state = ST;
+			printf("SigChld Handler: Job[%d] %d stopped by the signal(%d)\n", job_id, WTERMSIG(status));
+>>>>>>> Stashed changes
 		}
 		else if(WIFSIGNALED(status))
 		{
