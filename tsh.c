@@ -410,14 +410,11 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
-<<<<<<< Updated upstream
     printf("sigchld_handler called");
     if(verbose)
     {
         printf("entered sigchld_handler");
     }
-=======
->>>>>>> Stashed changes
 
 	int status;
 	pid_t pid;
