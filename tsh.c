@@ -449,13 +449,9 @@ void sigchld_handler(int sig)
 		}
 		else if(WIFSTOPPED(status))
 		{
-<<<<<<< Updated upstream
             printf("WIFSTOPPED\n");
 			printf("SigChld Handler: Job[%d] %d stopped by the signal(%d)\n", job_id, pid, WTERMSIG(status));
-=======
-			getjobpid(jobs, pid)->state = ST;
-			printf("SigChld Handler: Job[%d] %d stopped by the signal(%d)\n", job_id, WTERMSIG(status));
->>>>>>> Stashed changes
+
 		}
 		else if(WIFSIGNALED(status))
 		{
