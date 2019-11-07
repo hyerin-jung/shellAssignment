@@ -294,6 +294,7 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+	printf("builtin_cmd : argv[0] : %s\n", argv[0]);
 	if(!strcmp(argv[0], "quit"))
 	{
 		exit(0);
@@ -320,13 +321,15 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+	printf("do_bgfg\n");
+	printf("%s\n", argv[1]);
     if(argv[1] == NULL)
     {
         printf("%s : require pid or jid", argv[0]);
         return;
     }
 
-    int isfg = strcmp(argv[1], "bg");
+    int isfg = strcmp(argv[0], "bg");
     int isPid = strncmp(argv[1], "%", 1);
 
     int pid;
@@ -337,8 +340,12 @@ void do_bgfg(char **argv)
     }
     else
     {
+    	printf("not pid\n");
+    	printf("%s\n", argv[1] + 1);
         pid = atoi(argv[1] + 1);
     }
+
+    printf("do_bgfg : pid = %d", pid);
 
     struct job_t* job = getjobpid(jobs, pid);
     // command "bg" - Change a stopped background job to a running background job
@@ -346,7 +353,10 @@ void do_bgfg(char **argv)
     {
         if(job->state == ST)
         {
+        	printf("state = BG\n");
             job->state = BG;
+            printf("kill\n"0;)
+            kill(-pid, SIGCONT);
         }
     }
     // commnad "fg" - Change a stopped or running background job to a running in the foreground
@@ -354,16 +364,13 @@ void do_bgfg(char **argv)
     {
         if(job->state != ST || job->state != BG)
         {
+        	printf("state = FG\n");
             job->state = FG;
+            printf("kill\n"0;)
+            kill(-pid, SIGCONT);
+            job->
+            waitfg(pid);
         }
-    }
-
-    kill(-pid, SIGCONT);
-
-    if(isfg)
-    {
-        printf("fg\n");
-        waitfg(pid);
     }
 
     return;
