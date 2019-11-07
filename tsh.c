@@ -202,7 +202,6 @@ void eval(char *cmdline)
 		{
             sigprocmask(SIG_UNBLOCK, &mask, NULL); // unblock SIGCHLD
             setpgid(0, 0);
-            printf("before job working\n");
 			if(execve(argv[0], argv, environ) < 0)
 			{
 				printf("%s: Command not found.\n", argv[0]);
@@ -214,7 +213,7 @@ void eval(char *cmdline)
             sigprocmask(SIG_UNBLOCK, &mask, NULL); // unblock SIGCHLD
             if(addjob(jobs, pid, fgbg, cmdline) == 0)
             {
-                printf("job add failed\n");
+                printf("Failed to add job\n");
             }
 
             if(bg)
@@ -294,7 +293,6 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
-	printf("builtin_cmd : argv[0] : %s\n", argv[0]);
 	if(!strcmp(argv[0], "quit"))
 	{
 		exit(0);
@@ -307,7 +305,6 @@ int builtin_cmd(char **argv)
 	else if(!strcmp(argv[0], "bg") || !strcmp(argv[0], "fg"))
 	{
         do_bgfg(argv);
-
 	}
     else
     {
@@ -321,11 +318,9 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-	printf("do_bgfg\n");
-	printf("%s\n", argv[1]);
     if(argv[1] == NULL)
     {
-        printf("%s : require pid or jid", argv[0]);
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
         return;
     }
 
@@ -333,30 +328,48 @@ void do_bgfg(char **argv)
     int isPid = strncmp(argv[1], "%", 1);
 
     int pid;
+    struct job_t* job = NULL;
 
     if(isPid)
     {
         pid = atoi(argv[1]);
+        if(pid <= 0)
+        {
+        	printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        	return;
+        }
+        job = getjobpid(jobs, pid);
+        if(job == NULL)
+	    {
+	    	printf("(%d): no such process\n", pid);
+	    	return;
+	    }
     }
     else
     {
-    	printf("not pid\n");
-    	printf("%s\n", argv[1] + 1);
-        pid = atoi(argv[1] + 1);
+        int jid = atoi(argv[1] + 1);
+        if(jid <= 0 || jid >= MAXJID)
+        {
+        	printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        	return;
+        }
+        job = getjobjid(jobs, jid);
+        if(job == NULL)
+	    {
+	    	printf("%s: No such job\n", argv[1]);
+	    	return;
+	    }
+        pid = job->pid;
     }
 
-    printf("do_bgfg : pid = %d", pid);
-
-    struct job_t* job = getjobpid(jobs, pid);
     // command "bg" - Change a stopped background job to a running background job
     if(!isfg)
     {
         if(job->state == ST)
         {
-        	printf("state = BG\n");
             job->state = BG;
-            printf("kill\n"0;)
             kill(-pid, SIGCONT);
+            printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
         }
     }
     // commnad "fg" - Change a stopped or running background job to a running in the foreground
@@ -364,11 +377,8 @@ void do_bgfg(char **argv)
     {
         if(job->state != ST || job->state != BG)
         {
-        	printf("state = FG\n");
             job->state = FG;
-            printf("kill\n"0;)
             kill(-pid, SIGCONT);
-            job->
             waitfg(pid);
         }
     }
@@ -423,15 +433,15 @@ void sigchld_handler(int sig)
 
 			if(verbose)
 			{
-				printf("sigchld_handler: Job[%d] (%d) deleted\n", job_id, pid);
+				printf("Job [%d] (%d) deleted\n", job_id, pid);
 				//WEXITSTATUS: the child process normally terminated-> the return value
-            	printf("sigchld_handler: Job[%d] (%d) terminates OK (status %d)\n", job_id, pid, WEXITSTATUS(status));
+            	printf("Job [%d] (%d) terminates OK (status %d)\n", job_id, pid, WEXITSTATUS(status));
             }
 		}
 		else if(WIFSTOPPED(status))
 		{
             getjobpid(jobs, pid)->state = ST;
-			printf("SigChld Handler: Job[%d] (%d) stopped by the signal(%d)\n", job_id, pid, WTERMSTP(status));
+			printf("Job [%d] (%d) stopped by the signal %d\n", job_id, pid, WSTOPSIG(status));
 		}
 		else if(WIFSIGNALED(status))
 		{
@@ -439,10 +449,10 @@ void sigchld_handler(int sig)
 
 			if(verbose)
 			{
-				printf("SigChld Handler: Job[%d] (%d) deleted\n", job_id, pid);
+				printf("Job [%d] (%d) deleted\n", job_id, pid);
 			}
 			//WTERMSIG: Returns the number of the signal that caused the child process to terminate.
-			printf("Job[%d] (%d) terminated by the signal(%d)\n", job_id, pid, WTERMSIG(status));
+			printf("Job [%d] (%d) terminated by the signal %d\n", job_id, pid, WTERMSIG(status));
 		}
 	}
 	if(verbose)
