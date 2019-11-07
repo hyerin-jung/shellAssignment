@@ -404,10 +404,8 @@ void sigchld_handler(int sig)
 	pid_t pid;
 	int job_id;
 
-	pid = waitpid(-1, &status, WUNTRACED | WNOHANG);
-
 	//to reap child zombies
-	if(pid > 0)
+	if((pid = waitpid(-1, &status, WUNTRACED | WNOHANG)) > 0)
 	{
 		job_id = pid2jid(pid);
 
@@ -496,7 +494,7 @@ void sigtstp_handler(int sig)
         }
 
         //have to change the jobstate to stop (ST)     
-        getjobpid(jobs, pid)->state = ST;
+        //getjobpid(jobs, pid)->state = ST;
     }
     if(verbose)
     {
