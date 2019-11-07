@@ -397,7 +397,7 @@ void sigchld_handler(int sig)
 {
     if(verbose)
     {
-        printf("entered sigchld_handler");
+        printf("sigchld_handler: entering");
     }
 
 	int status;
@@ -416,16 +416,15 @@ void sigchld_handler(int sig)
 
 			if(verbose)
 			{
-				printf("SigChld Handler: Job[%d] %d deleted\n", job_id, pid);
+				printf("sigchld_handler: Job[%d] (%d) deleted\n", job_id, pid);
 				//WEXITSTATUS: the child process normally terminated-> the return value
-            	printf("SigChld Handler: Job[%d] %d terminated (status %d)\n", job_id, pid, WEXITSTATUS(status));
+            	printf("sigchld_handler: Job[%d] (%d) terminates OK (status %d)\n", job_id, pid, WEXITSTATUS(status));
             }
 		}
 		else if(WIFSTOPPED(status))
 		{
             getjobpid(jobs, pid)->state = ST;
-			printf("SigChld Handler: Job[%d] %d stopped by the signal(%d)\n", job_id, pid, WTERMSIG(status));
-
+			printf("SigChld Handler: Job[%d] (%d) stopped by the signal(%d)\n", job_id, pid, WTERMSTP(status));
 		}
 		else if(WIFSIGNALED(status))
 		{
@@ -433,13 +432,16 @@ void sigchld_handler(int sig)
 
 			if(verbose)
 			{
-				printf("SigChld Handler: Job[%d] %d deleted\n", job_id, pid);
+				printf("SigChld Handler: Job[%d] (%d) deleted\n", job_id, pid);
 			}
 			//WTERMSIG: Returns the number of the signal that caused the child process to terminate.
-			printf("Job[%d] %d terminated by the signal(%d)\n", job_id, pid, WTERMSIG(status));
+			printf("Job[%d] (%d) terminated by the signal(%d)\n", job_id, pid, WTERMSIG(status));
 		}
 	}
-
+	if(verbose)
+    {
+        printf("sigchld_handler: exiting");
+    }
     return;
 }
 
@@ -462,12 +464,12 @@ void sigint_handler(int sig)
         //verbose=0;/* if true, print additional output */
         if(verbose)
         { 
-            printf("Sigint Handler: %d",(int)pid);
+            printf("sigint_handler: %d",pid);
         }
     }
     if(verbose)
     {
-        printf("Sigint Handler: Exist");
+        printf("sigint_handler: exiting");
     }
     return;
 
@@ -490,7 +492,7 @@ void sigtstp_handler(int sig)
 
         if(verbose)
         {
-        	printf("Sigtstp Handler: %d", (int)pid);
+        	printf("sigtstp_handler: %d", pid);
         }
 
         //have to change the jobstate to stop (ST)     
@@ -498,7 +500,7 @@ void sigtstp_handler(int sig)
     }
     if(verbose)
     {
-    	printf("Sigtstp Handler: Exist");
+    	printf("sigtstp_handler: exiting");
     }
     return;
 }
